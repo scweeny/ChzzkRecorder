@@ -1,0 +1,65 @@
+========================================================================
+                      오픈소스 소프트웨어 라이선스 고지
+                 (Open Source Software License Information)
+========================================================================
+
+본 프로그램("CHZ Recorder")은 아래의 오픈소스 소프트웨어 및 타사 라이브러리를 
+활용하여 개발되었습니다. 각 소프트웨어의 저작권 및 라이선스 조항은 
+해당 프로젝트의 규정을 따릅니다.
+
+------------------------------------------------------------------------
+1. FFmpeg
+------------------------------------------------------------------------
+본 프로그램은 동영상 스트리밍 분석, 다운로드 및 인코딩 처리를 위해 
+FFmpeg 프로젝트의 실행 파일(ffmpeg.exe)을 사용합니다. 
+
+본 프로그램은 FFmpeg의 소스 코드를 내장하거나 정적/동적으로 링크(Link)하여 
+결합하지 않으며, 사용자의 선택에 따라 공식 배포처로부터 독립된 실행 파일을 
+다운로드하여 외부 프로세스(Command Line) 형태로 호출하는 방식만 사용합니다.
+
+- 저작권자: FFmpeg 개발팀 (The FFmpeg developers)
+- 적용 라이선스: GNU General Public License v3.0 (GPLv3)
+- 공식 웹사이트: https://ffmpeg.org
+- 소스 코드 다운로드: https://ffmpeg.org/download.html
+- Windows 빌드 배포처: https://www.gyan.dev/ffmpeg/builds/
+
+------------------------------------------------------------------------
+2. SharpCompress
+------------------------------------------------------------------------
+FFmpeg 실행 파일의 .7z 압축 해제를 위해 사용되었습니다.
+
+- 저작권자: Adam Hathcock
+- 적용 라이선스: MIT License
+- 공식 웹사이트 및 소스 코드: https://github.com/adamhathcock/sharpcompress
+
+Copyright (c) 2014 Adam Hathcock
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+------------------------------------------------------------------------
+3. MahApps.Metro.IconPacks
+------------------------------------------------------------------------
+프로그램의 모던 UI 및 벡터 아이콘(Material Design) 표기를 위해 사용되었습니다.
+
+- 저작권자: Jan Karger, MahApps and contributors
+- 적용 라이선스: MIT License
+- 공식 웹사이트 및 소스 코드: https://github.com/MahApps/MahApps.Metro.IconPacks
+
+Copyright (c) 2016 Jan Karger, MahApps and contributors
+(MIT License 조항은 위의 SharpCompress와 동일하게 적용됩니다.)
+
+------------------------------------------------------------------------
+4. Microsoft Edge WebView2
+------------------------------------------------------------------------
+네이버(치지직) 로그인 세션 연동 및 웹뷰 출력을 위해 사용되었습니다.
+
+- 저작권자: Microsoft Corporation
+- 적용 라이선스: WebView2 SDK License (Microsoft)
+- 관련 안내: https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+
+========================================================================[면책 조항 / Disclaimer]
+본 프로그램은 어떠한 형태의 보증(상품성, 특정 목적에의 적합성 등)도 
+명시적이나 묵시적으로 제공하지 않으며, "있는 그대로(AS IS)" 제공됩니다.
+프로그램 사용으로 인해 발생하는 데이터 손실, 트래픽 비용, 서버 차단 등의 
+모든 책임은 전적으로 사용자 본인에게 있습니다.
+========================================================================

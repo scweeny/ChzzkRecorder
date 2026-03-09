@@ -1,0 +1,116 @@
+﻿<Window x:Class="ChzzkRecorder.AddStreamerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+        mc:Ignorable="d"
+        Title="새 스트리머 추가" Height="330" Width="480"
+        Background="White" FontFamily="Segoe UI, Malgun Gothic" FontSize="14"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False">
+
+    <Window.Resources>
+        <!-- 공통 색상 -->
+        <SolidColorBrush x:Key="ChzzkGreen" Color="#00FFA3"/>
+        <SolidColorBrush x:Key="ChzzkDarkGreen" Color="#00C781"/>
+
+        <!-- 기본 버튼 스타일 -->
+        <Style x:Key="DefaultButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#DCDCDC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F0F0F0"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 강조 버튼 스타일 (녹색) -->
+        <Style x:Key="AccentButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource ChzzkGreen}"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource ChzzkDarkGreen}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 텍스트박스 기본 스타일 -->
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#DCDCDC"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Header -->
+            <RowDefinition Height="*"/>
+            <!-- Input Area -->
+            <RowDefinition Height="Auto"/>
+            <!-- Bottom Buttons -->
+        </Grid.RowDefinitions>
+
+        <!-- 상단 헤더 텍스트 -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="자동으로 녹화할 스트리머의 정보를 입력하세요." FontWeight="SemiBold" FontSize="15" Margin="0,0,0,5"/>
+            <TextBlock Text="방송 ID는 치지직 채널 주소(URL)의 영문/숫자 조합입니다." Foreground="#888888" FontSize="12"/>
+        </StackPanel>
+
+        <!-- 입력 폼 영역 -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="110"/>
+                <!-- 라벨 영역 -->
+                <ColumnDefinition Width="*"/>
+                <!-- 입력 영역 -->
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 1. 스트리머 방송 ID -->
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="방송 ID (채널)" VerticalAlignment="Center" Margin="0,0,10,15"/>
+            <Grid Grid.Row="0" Grid.Column="1" Margin="0,0,0,15" Cursor="">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Row="0" Grid.Column="0" x:Name="TxtChannelId" Margin="0,0,10,0" VerticalContentAlignment="Center" ToolTip="예: https://chzzk.naver.com/live/ 이후의 문자열"/>
+                <Button Grid.Column="1" x:Name="BtnCheckStreamer" Content="이름 검색" Style="{StaticResource DefaultButtonStyle}" Padding="10,6" Click="BtnCheckStreamer_Click" Cursor="Hand" />
+            </Grid>    
+            
+            <!-- 2. 스트리머 이름 -->
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="스트리머 이름" VerticalAlignment="Center" Margin="0,0,10,15"/>
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="TxtStreamerName" VerticalContentAlignment="Center" IsReadOnly="True" Margin="0,0,0,15"/>
+
+            <!-- 3. 저장할 폴더 위치 -->
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="저장 폴더" VerticalAlignment="Center" Margin="0,0,10,15"/>
+            <Grid Grid.Row="2" Grid.Column="1" Margin="0,0,0,15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="TxtSaveFolder" IsReadOnly="True" VerticalContentAlignment="Center" Text="" Margin="0,0,10,0"/>
+                <Button Grid.Column="1" x:Name="BtnBrowse" Content="찾아보기" Style="{StaticResource DefaultButtonStyle}" Padding="10,6" Click="BtnBrowse_Click"/>
+            </Grid>
+        </Grid>
+
+        <!-- 하단 확인/취소 버튼 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+            <Button x:Name="BtnAdd" Content="추가하기" Style="{StaticResource AccentButtonStyle}" Width="100" Margin="0,0,10,0" Click="BtnAdd_Click"/>
+            <Button x:Name="BtnCancel" Content="취소" Style="{StaticResource DefaultButtonStyle}" Width="80" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
