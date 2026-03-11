@@ -47,6 +47,8 @@ namespace ChzzkRecorder
         {
             InitializeComponent();
 
+            this.StateChanged += MainWindow_StateChanged;
+
             StreamerList = new ObservableCollection<DummyStreamer>();
             StreamerDataGrid.ItemsSource = StreamerList;
 
@@ -56,6 +58,24 @@ namespace ChzzkRecorder
 
             AuthManager.LoadAuth();
             UpdateLoginStatusUI();
+
+            string[] args = Environment.GetCommandLineArgs();
+            if (args.Contains("-startup"))
+            {
+                // -startup 인자가 있다면 윈도우가 켠 것이므로, 창을 최소화 상태로 바꿉니다.
+                // (이전에 만들어둔 StateChanged 이벤트가 최소화를 감지하고 알아서 트레이로 숨겨줍니다!)
+                this.WindowState = WindowState.Minimized;
+            }
+
+            if (ChkAutoStartRecording.IsChecked == true)
+            {
+                // 목록에 있는 모든 스트리머를 대상으로 StartRecordingAsync(감시 루프)를 실행합니다.
+                foreach (var streamer in StreamerList)
+                {
+                    // _ = 를 붙여 경고를 없애고 백그라운드 스레드로 비동기 실행을 던져놓습니다.
+                    _ = StartRecordingAsync(streamer);
+                }
+            }
 
         }
 
@@ -86,6 +106,9 @@ namespace ChzzkRecorder
 
                         TxtBitrate.Text = settings.Bitrate.ToString();
                         TxtCheckInterval.Text = settings.CheckInterval.ToString();
+                        ChkMinimizeToTray.IsChecked = settings.MinimizeToTray;
+                        ChkRunAtStartup.IsChecked = settings.RunAtStartup;
+                        ChkAutoStartRecording.IsChecked = settings.AutoStartRecording;
 
                         // ★ 방어 코드 추가: SavedStreamers가 null이 아닐 때만 반복문 실행!
                         if (settings.SavedStreamers != null)
@@ -123,7 +146,10 @@ namespace ChzzkRecorder
                     VideoCodec = RdoCodecCopy.IsChecked == true ? "Copy" : (RdoCodecH264.IsChecked == true ? "H264" : (RdoCodecH265.IsChecked == true ? "H265" : "AV1")),
                     EncoderType = RdoEncCPU.IsChecked == true ? "CPU" : (RdoEncNVENC.IsChecked == true ? "NVENC" : (RdoEncQSV.IsChecked == true ? "QSV" : "AMF")),
                     Bitrate = int.TryParse(TxtBitrate.Text, out int b) ? b : 8000,
-                    CheckInterval = int.TryParse(TxtCheckInterval.Text, out int c) ? c : 5
+                    CheckInterval = int.TryParse(TxtCheckInterval.Text, out int c) ? c : 5,
+                    MinimizeToTray = ChkMinimizeToTray.IsChecked ?? true,
+                    RunAtStartup = ChkRunAtStartup.IsChecked ?? false,
+                    AutoStartRecording = ChkAutoStartRecording.IsChecked ?? false
                 };
 
                 string dir = Path.GetDirectoryName(_settingsFilePath)!;
@@ -269,8 +295,10 @@ namespace ChzzkRecorder
         }
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            CleanupBeforeExit();
             // 프로그램이 종료되기 직전에 무조건 설정을 저장합니다.
             SaveSettings();
+            MyNotifyIcon?.Dispose(); // 아이콘 찌꺼기 제거
         }
 
         private void BtnBrowseDefaultFolder_Click(object sender, RoutedEventArgs e)
@@ -1090,14 +1118,20 @@ namespace ChzzkRecorder
 
                 using (Process process = new Process { StartInfo = psi })
                 {
-                    // 사용자가 [일시 정지] 또는 [취소]를 눌렀을 때 토큰 캔슬 감지
                     using (vod.Cts!.Token.Register(() =>
                     {
                         try { process.StandardInput.WriteLine("q"); } catch { }
                     }))
                     {
                         process.Start();
-                        await process.WaitForExitAsync(); // 다운로드가 완료될 때까지 대기
+
+                        // ★ 앱 종료 시 확실하게 끌 수 있도록 추적 리스트에 등록!
+                        _activeProcesses[vod.FileName] = process;
+
+                        await process.WaitForExitAsync();
+
+                        // 끝나면 리스트에서 제거
+                        _activeProcesses.Remove(vod.FileName);
                     }
                 }
 
@@ -1136,6 +1170,136 @@ namespace ChzzkRecorder
                 textBox.ScrollToEnd();
             }
         }
+
+        // ====================================================================
+        // 프로그램 종료 시 잔여 FFmpeg 및 토큰을 완벽하게 청소하는 로직
+        // ====================================================================
+        private void CleanupBeforeExit()
+        {
+            // 1. 대기 중인 무한 감시망 토큰 전부 취소
+            foreach (var cts in _monitorTokens.Values)
+            {
+                try { cts.Cancel(); } catch { }
+            }
+
+            // 2. 다운로드 중인 VOD 토큰 전부 취소 (HttpClient 및 찌꺼기 파일 정리)
+            foreach (var vod in VodList)
+            {
+                if (vod.IsDownloading && vod.Cts != null)
+                {
+                    try { vod.Cts.Cancel(); } catch { }
+                }
+            }
+
+            // ★ 3. 뒤에서 몰래 돌아가는 FFmpeg 프로세스 안전 종료 및 확인 사살
+            foreach (var process in _activeProcesses.Values.ToList())
+            {
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        // q를 보내서 영상 헤더가 깨지지 않게 정상 저장 유도
+                        process.StandardInput.WriteLine("q");
+
+                        // 프로그램이 꺼지는 중이므로 딱 1.5초만 기다려줌
+                        if (!process.WaitForExit(1500))
+                        {
+                            // 그래도 안 꺼지고 버티면 강제 처형
+                            process.Kill();
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            _activeProcesses.Clear();
+        }
+
+        // ====================================================================
+        // 시스템 트레이 (최소화 / 복구 / 종료) 관련 로직
+        // ====================================================================
+
+        // 1. 최소화 버튼(-)을 눌렀을 때의 동작
+        private void MainWindow_StateChanged(object? sender, EventArgs e)
+        {
+            // 창이 최소화 상태로 변했고, '트레이로 숨기기' 옵션이 켜져있다면
+            if (this.WindowState == WindowState.Minimized && ChkMinimizeToTray.IsChecked == true)
+            {
+                this.Hide(); // 작업 표시줄에서 창을 아예 숨깁니다. (백그라운드 실행)
+            }
+        }
+
+        // 2. 트레이 아이콘을 더블클릭하거나 우클릭->[다시 열기]를 눌렀을 때
+        private void MenuOpen_Click(object sender, RoutedEventArgs e)
+        {
+            this.Show(); // 숨겼던 창을 다시 표시
+            this.WindowState = WindowState.Normal; // 창 크기를 원래대로 복구
+            this.Activate(); // 창을 최상단으로 포커스
+        }
+
+        private void MyNotifyIcon_TrayMouseDoubleClick(object sender, RoutedEventArgs e)
+        {
+            MenuOpen_Click(sender, e);
+        }
+
+        // 3. 우클릭->[종료]를 눌렀을 때 (완전 종료)
+        private async void MenuExit_Click(object sender, RoutedEventArgs e)
+        {
+            // ★ [핵심] 우클릭 메뉴가 완전히 닫힐 때까지 0.2초(200ms)만 아주 잠깐 기다려 줍니다.
+            // 이 한 줄이 들어가면 MessageBox가 메인 윈도우에 정상적으로 달라붙어 사라지지 않습니다!
+            await Task.Delay(200);
+
+            // 백그라운드 녹화 중이라면 강제 종료될 수 있으므로 한 번 물어보는 것이 좋습니다.
+            if (_activeProcesses.Count > 0)
+            {
+                var result = MessageBox.Show("현재 진행 중인 녹화 또는 감시가 있습니다.\n정말 완전히 종료하시겠습니까?", "종료 확인", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (result == MessageBoxResult.No) return;
+            }
+            CleanupBeforeExit();
+            Application.Current.Shutdown();
+        }
+        // ====================================================================
+        // 부팅 시 자동 실행 (레지스트리 등록/해제) 로직
+        // ====================================================================
+        private void ChkRunAtStartup_Click(object sender, RoutedEventArgs e)
+        {
+            bool isEnabled = ChkRunAtStartup.IsChecked ?? false;
+            SetStartupRegistry(isEnabled);
+            SaveSettings(); // 체크하는 즉시 저장
+        }
+
+        private void SetStartupRegistry(bool enable)
+        {
+            try
+            {
+                // 윈도우 시작 프로그램 레지스트리 경로
+                string runKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(runKey, true)!)
+                {
+                    if (enable)
+                    {
+                        // 현재 내 프로그램의 실행 파일(.exe) 경로를 가져옴
+                        string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+
+                        // ★ 핵심: 경로 뒤에 "-startup" 이라는 비밀 암호를 붙여서 윈도우에게 실행을 부탁함
+                        key.SetValue("ChzzkRecorder", $"\"{exePath}\" -startup");
+                    }
+                    else
+                    {
+                        // 체크 해제 시 레지스트리에서 삭제
+                        key.DeleteValue("ChzzkRecorder", false);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"시작 프로그램 등록 중 오류가 발생했습니다.\n{ex.Message}", "권한 오류", MessageBoxButton.OK, MessageBoxImage.Error);
+                ChkRunAtStartup.IsChecked = !enable; // 실패 시 체크박스 원상복구
+            }
+        }
+
+
+
     }
 
 
@@ -1173,14 +1337,27 @@ namespace ChzzkRecorder
 
         public void AddLog(string message)
         {
-            // 백그라운드 스레드에서 호출될 수 있으므로 Dispatcher 사용
+            // 1. 넘어온 메시지가 null이면 빈 문자열로 처리
+            message ??= "";
+
+            // 2. 프로그램이 종료되는 시점이라 UI 스레드(Dispatcher)가 파괴되었다면 안전하게 무시
+            if (Application.Current == null || Application.Current.Dispatcher == null) return;
+
             Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                // 3. JSON 불러오기 등으로 인해 기존 로그(_logs)가 null로 꼬여있다면 빈 문자열로 자동 복구
+                if (_logs == null) _logs = string.Empty;
+
                 // 메모리 폭주 방지: 로그가 너무 길어지면 앞부분 자르기 (약 3만 자 유지)
-                if (_logs.Length > 30000) _logs = _logs.Substring(_logs.Length - 10000);
+                if (_logs.Length > 30000)
+                {
+                    _logs = _logs.Substring(_logs.Length - 10000);
+                }
 
                 string time = DateTime.Now.ToString("HH:mm:ss");
-                Logs += $"[{time}] {message}\n";
+
+                // Logs += 를 쓰지 않고 풀어서 대입하여 UI 갱신 이벤트(OnPropertyChanged)가 정상적으로 울리게 함
+                Logs = _logs + $"[{time}] {message}\n";
             });
         }
 
@@ -1253,6 +1430,10 @@ namespace ChzzkRecorder
         public int Bitrate { get; set; } = 8000;
 
         public int CheckInterval { get; set; } = 5; // ★ 추가됨
+
+        public bool MinimizeToTray { get; set; } = false;
+        public bool RunAtStartup { get; set; } = false;
+        public bool AutoStartRecording { get; set; } = false;
     }
 
 

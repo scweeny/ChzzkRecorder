@@ -6,6 +6,7 @@
         xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
         xmlns:local="clr-namespace:ChzzkRecorder"
         mc:Ignorable="d"
+        xmlns:tb="http://www.hardcodet.net/taskbar"
         Title="CHZ Recorder - 치지직 녹화 및 다운로더" Height="800" Width="1100" 
         Background="#F5F5F7" FontFamily="Segoe UI, Malgun Gothic" FontSize="14"
         WindowStartupLocation="CenterScreen" Initialized="Window_Initialized" Closing="Window_Closing">
@@ -79,7 +80,9 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    
+
+    <Grid>    
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <!-- Main Menu/Tabs -->
@@ -88,6 +91,25 @@
             <RowDefinition Height="Auto"/>
             <!-- Status Bar -->
         </Grid.RowDefinitions>
+
+        <tb:TaskbarIcon x:Name="MyNotifyIcon" IconSource="/icon.ico" ToolTipText="CHZ Recorder (백그라운드 실행 중)" TrayMouseDoubleClick="MyNotifyIcon_TrayMouseDoubleClick">
+            <tb:TaskbarIcon.ContextMenu>
+                <!-- 우클릭 컨텍스트 메뉴 디자인 -->
+                <ContextMenu>
+                    <MenuItem Header="프로그램 다시 열기" Click="MenuOpen_Click" FontWeight="Bold">
+                        <MenuItem.Icon>
+                            <iconPacks:PackIconMaterial Kind="WindowMaximize" Foreground="#00C781"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <MenuItem Header="종료 (완전 종료)" Click="MenuExit_Click">
+                        <MenuItem.Icon>
+                            <iconPacks:PackIconMaterial Kind="ExitToApp" Foreground="#FF4D4D"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
 
         <!-- 1. 메인 탭 컨트롤 (상단) -->
         <!-- [수정완료] TabItemStyle을 Window.Resources에 정의된 스타일로 바인딩 -->
@@ -510,6 +532,22 @@
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
+
+                        <GroupBox Header="기타 설정">
+                            <StackPanel>
+                                <CheckBox x:Name="ChkMinimizeToTray" Content="창을 최소화할 때 작업 표시줄에서 숨기고 시스템 트레이로 이동" 
+                          IsChecked="False" VerticalAlignment="Center" Margin="5"/>
+
+                                <CheckBox x:Name="ChkRunAtStartup" Content="윈도우 부팅 시 트레이 아이콘 모드로 자동 실행" 
+                          IsChecked="False" VerticalAlignment="Center" Margin="5" Click="ChkRunAtStartup_Click"/>
+
+                                <CheckBox x:Name="ChkAutoStartRecording" Content="프로그램 실행 시 등록된 모든 스트리머 자동 감시/녹화 시작" 
+                          IsChecked="False" VerticalAlignment="Center" Margin="5"/>
+                            </StackPanel>
+                            
+
+                        </GroupBox>
+
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
